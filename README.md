@@ -13,7 +13,7 @@ A bootstrap for a TensorFlow project
 ### Bash shell
 
 ```bash
-> bash run.sh train|export|tensorboard|encode|build $ARGS
+> bash run_venv.sh train|export|tensorboard|encode|build $ARGS
 ```
 ## Extension
 
