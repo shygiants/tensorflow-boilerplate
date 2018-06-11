@@ -1,0 +1,2 @@
+tensorflow
+tflibs==0.2.0
