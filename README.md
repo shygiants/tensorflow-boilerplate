@@ -1,6 +1,6 @@
-# TensorFlow Bootstrap
+# TensorFlow Boilerplate
 
-A bootstrap for a TensorFlow project
+A boilerplate for a TensorFlow project
 
 ## Run
 
