@@ -21,6 +21,6 @@ RUN mkdir /dataset && mkdir /job-dir
 # Copy all source codes
 COPY . .
 
-RUN pip install -r /tf/src/requirements.txt
+RUN pip install -r /tf/requirements.txt
 
 ENTRYPOINT ["bash", "run.sh"]

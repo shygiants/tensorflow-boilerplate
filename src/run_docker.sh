@@ -74,6 +74,9 @@ docker rm ${CONTAINER_NAME}
 # Run docker container
 docker run --runtime=nvidia \
     -e "CUDA_VISIBLE_DEVICES=${DEVICE_ID}" \
+    -e "JOB_DIR=${JOB_DIR}" \
+    -e "LOG_DIR=${JOB_DIR}" \
+    -e "DATASET_DIR=${DATASET_DIR}" \
     --name ${CONTAINER_NAME} \
     ${PORT} \
     -v ${JOB_DIR}:/job-dir -v ${DATASET_DIR}:/dataset \
