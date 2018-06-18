@@ -7,7 +7,7 @@ RUN add-apt-repository ppa:ubuntu-toolchain-r/test
 RUN apt-get update && apt-get -y install libsm6 libice6 libxrender1 libxext6 libstdc++6
 
 # Tensorflow project
-FROM tensorflow/tensorflow:1.7.0-gpu
+FROM tensorflow/tensorflow:1.8.0-gpu
 
 # Copy libraries
 COPY --from=base /usr/lib/x86_64-linux-gnu /usr/lib/x86_64-linux-gnu
