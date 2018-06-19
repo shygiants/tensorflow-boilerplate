@@ -1,2 +1,2 @@
 tensorflow
-tflibs==0.2.2
+tflibs==0.3.0

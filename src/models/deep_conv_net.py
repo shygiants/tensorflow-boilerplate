@@ -1,6 +1,7 @@
 import tensorflow as tf
 from tflibs.model import Model, Network
 from tflibs.training import Optimizer, Dispatcher
+from tflibs.utils import device_setter, image_summary
 
 
 class DCN(Network):
@@ -8,8 +9,7 @@ class DCN(Network):
         Network.__init__(self, is_chief, features, labels)
 
         image = features['image']
-        batch_size = image.shape.as_list()[0]
-        tf.summary.image('Input_Images', image, max_outputs=batch_size, family='Images')
+        image_summary('Input_Images', image)
 
         self._logits = None
         self._loss = None
@@ -55,10 +55,10 @@ class DCN(Network):
         return self._predictions
 
 
-def train(images, labels, beta1, beta2, decay_iters, decay_steps, learning_rate, train_iters, gpu):
+def train(images, labels, beta1, beta2, learning_rate, gpu, **decay_params):
     with tf.variable_scope('DeepConvNet', values=[images, labels]):
         global_step = tf.train.get_or_create_global_step()
-        optimizer = Optimizer(learning_rate, '', beta1, beta2, train_iters, decay_iters, decay_steps)
+        optimizer = Optimizer(learning_rate, '', beta1, beta2, decay_policy='dying', decay_params=decay_params)
 
         if gpu:
             gpus = map(int, gpu.split(','))
@@ -74,17 +74,18 @@ def train(images, labels, beta1, beta2, decay_iters, decay_steps, learning_rate,
         return tf.estimator.EstimatorSpec(tf.estimator.ModeKeys.TRAIN, loss=loss, train_op=train_op)
 
 
-def evaluate(images, labels):
+def evaluate(images, labels, gpu_eval):
     with tf.variable_scope('DeepConvNet', values=[images, labels]):
-        dcn = DCN(True, {'image': images}, labels)
+        with tf.device(device_setter('/gpu:{}'.format(gpu_eval if gpu_eval else 0))):
+            dcn = DCN(True, {'image': images}, labels)
 
-        metrics = {
-            'accuracy': tf.metrics.accuracy(tf.argmax(labels, axis=1), dcn.predictions)
-        }
+            metrics = {
+                'accuracy': tf.metrics.accuracy(tf.argmax(labels, axis=1), dcn.predictions)
+            }
 
-        return tf.estimator.EstimatorSpec(tf.estimator.ModeKeys.EVAL,
-                                          loss=dcn.loss,
-                                          eval_metric_ops=metrics)
+            return tf.estimator.EstimatorSpec(tf.estimator.ModeKeys.EVAL,
+                                              loss=dcn.loss,
+                                              eval_metric_ops=metrics)
 
 
 def predict(images):
@@ -116,7 +117,7 @@ class DeepConvNet(Model):
             return train(images, labels, **model_args)
         elif mode == tf.estimator.ModeKeys.EVAL:
             model_args.update(params['eval_args'])
-            return evaluate(images, labels)
+            return evaluate(images, labels, **model_args)
         elif mode == tf.estimator.ModeKeys.PREDICT:
             return predict(images)
         else:
@@ -161,6 +162,13 @@ class DeepConvNet(Model):
         argparser.add_argument('--gpu',
                                type=str,
                                help='GPU ids for training.',
+                               default=None)
+
+    @classmethod
+    def add_eval_args(cls, argparser, parse_args):
+        argparser.add_argument('--gpu-eval',
+                               type=str,
+                               help='GPU ids for evaluation.',
                                default=None)
 
 
