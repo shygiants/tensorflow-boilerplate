@@ -24,7 +24,7 @@ if { [ $1 = "train" ] || [ $1 = "export" ]; }; then
         echo "Usage: run_docker.sh $1 DEVICE_ID"
         exit 1
     fi
-    CONTAINER_NAME="$CONTAINER_BASENAME-train-${2//,/-}"
+    CONTAINER_NAME="$CONTAINER_BASENAME-$1-${2//,/-}"
     DEVICE_ID=$2
     ARGS="${@:3}"
 elif [ $1 = "tensorboard" ]; then
