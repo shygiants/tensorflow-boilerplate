@@ -2,7 +2,12 @@
 
 ENCODER_DIR="datasets.encoders"
 
-if [ $1 = "train" ]; then
+if [ $1 = "run" ]; then
+    python $2 \
+        --job-dir $JOB_DIR \
+        --dataset-dir $DATASET_DIR \
+        "${@:3}"
+elif [ $1 = "train" ]; then
     python trainer.py \
         --job-dir $JOB_DIR \
         --dataset-dir $DATASET_DIR \
@@ -18,6 +23,6 @@ elif [ $1 = "export" ]; then
         --job-dir $JOB_DIR \
         "${@:2}"
 else
-    echo "Usage: run.sh [train|tensorboard]"
+    echo "Usage: run.sh [run|train|encode|tensorboard|export]"
     exit 1
 fi

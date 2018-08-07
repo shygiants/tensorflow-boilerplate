@@ -19,7 +19,7 @@ function print-running() {
 }
 
 # Check command
-if { [ $1 = "train" ] || [ $1 = "export" ]; }; then
+if { [ $1 = "train" ] || [ $1 = "export" ] || [ $1 = "run" ]; }; then
     if [ -z "$2" ]; then
         echo "Usage: run_docker.sh $1 DEVICE_ID"
         exit 1
@@ -36,7 +36,7 @@ elif [ $1 = "encode" ]; then
 elif [ $1 = "build" ]; then
     echo "Only build Docker image."
 else
-    echo "Usage: run_docker.sh [train|export|tensorboard|encode|build] [DEVICE_ID]"
+    echo "Usage: run_docker.sh [train|export|run|tensorboard|encode|build] [DEVICE_ID]"
     exit 1
 fi
 
