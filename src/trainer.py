@@ -12,7 +12,7 @@ def run(job_dir,
         train_iters,
         estimator,
         dataset,
-        batch_size,
+        train_batch_size,
         eval_batch_size,
         eval_steps):
     ############
@@ -39,7 +39,7 @@ def run(job_dir,
     tf.logging.info('Start training for %d.', global_step)
     # Run training for `train_iters` times
     estimator.train(build_input_fn(dataset_train,
-                                   batch_size,
+                                   train_batch_size,
                                    map_fn=map_fn,
                                    global_step=global_step,
                                    shuffle_and_repeat=True),
@@ -60,18 +60,6 @@ if __name__ == '__main__':
         TrainInitializer(),
     ])
     parser = runner.argparser
-
-    ##################
-    # Input Pipeline #
-    ##################
-    parser.add_argument('--batch-size',
-                        type=int,
-                        default=16,
-                        help='Batch size for training')
-    parser.add_argument('--eval-batch-size',
-                        type=int,
-                        default=16,
-                        help='Batch size for evaluation')
 
     ##############
     # Run Config #
