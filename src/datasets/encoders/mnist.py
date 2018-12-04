@@ -11,6 +11,7 @@ import shutil
 import tensorflow as tf
 import numpy as np
 from tflibs.runner import Runner
+from tflibs.datasets import IDSpec, ImageSpec, LabelSpec
 
 from datasets.dataset.mnist import MNIST
 
@@ -65,17 +66,13 @@ def check_labels_file_header(filename):
                                                                            f.name))
 
 
-def fixed_record_reader(filename, record_bytes, header_bytes=0):
+def fixed_record_reader(filename, shape, header_bytes=0):
     with tf.gfile.Open(filename, 'rb') as f:
         if header_bytes > 0:
             # Abandon header
             f.read(header_bytes)
 
-        while True:
-            bs = f.read(record_bytes)
-            if bs == '':
-                break
-            yield np.frombuffer(bs, dtype=np.uint8)
+        return np.asarray(bytearray(f.read()), dtype=np.uint8).reshape(-1, *shape)
 
 
 def get_img_lbl(image_fname, label_fname, save_dir):
@@ -85,11 +82,13 @@ def get_img_lbl(image_fname, label_fname, save_dir):
     check_image_file_header(img_path)
     check_labels_file_header(lbl_path)
 
-    images = map(lambda flat_img: np.reshape(flat_img, (28, 28, 1)),
-                 fixed_record_reader(img_path, 28 * 28, header_bytes=16))
-    labels = list(fixed_record_reader(lbl_path, 1, header_bytes=8))
+    images = fixed_record_reader(img_path, (28, 28, 1), header_bytes=16)
+    labels = fixed_record_reader(lbl_path, (1,), header_bytes=8)
 
-    return zip(images, labels)
+    images = list(images)
+    labels = list(labels)
+
+    return list(zip(images, labels))
 
 
 def run(dataset_dir,
@@ -101,8 +100,11 @@ def run(dataset_dir,
     train = get_img_lbl('train-images-idx3-ubyte', 'train-labels-idx1-ubyte', save_dir)
     test = get_img_lbl('t10k-images-idx3-ubyte', 't10k-labels-idx1-ubyte', save_dir)
 
-    def process_fn((i, (img, lbl)), feature_specs):
-        def build_example(_id, image, label):
+    def process_fn(idx_tup_tup, feature_specs, _):
+        i, tup = idx_tup_tup
+        img, lbl = tup
+
+        def build_example(_id: IDSpec, image: ImageSpec, label: LabelSpec):
             return {
                 '_id': _id.create_with_string('{:05d}.jpg'.format(i)),
                 'image': image.create_with_tensor(img),

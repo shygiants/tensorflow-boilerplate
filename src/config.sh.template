@@ -2,3 +2,4 @@
 
 JOB_DIR=/your/job/dir
 DATASET_DIR=/your/dataset/dir
+NOTEBOOK_PASSWD="your password"

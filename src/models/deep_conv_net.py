@@ -1,125 +1,98 @@
 import tensorflow as tf
-from tflibs.model import Model, Network
+from tflibs.model import Model
 from tflibs.training import Optimizer, Dispatcher
-from tflibs.utils import device_setter, image_summary
+from tflibs.utils import param_consumer
+
+from networks.deep_conv_net import DeepConvNet as DCN
 
 
-class DCN(Network):
-    def __init__(self, is_chief, features, labels):
-        Network.__init__(self, is_chief, features, labels)
+class DeepConvNet(Model):
+    def __init__(self, features, labels=None, model_idx=0, model_parallelism=True, device=None, **hparams):
+        Model.__init__(self, features, labels=labels, model_idx=model_idx, model_parallelism=model_parallelism,
+                       device=device, **hparams)
 
-        image = features['image']
-        image_summary('Input_Images', image)
+        # Define networks
+        self.networks.update(dcn=DCN(scope='DeepConvNet', **hparams))
 
-        self._logits = None
-        self._loss = None
-        self._scores = None
-        self._predictions = None
+    @Model.image(summary='Input_Images')
+    def images(self):
+        return self.features['image']
 
-        self._var_defined = False
-
-    def dcn(self, images):
-        with tf.variable_scope('ConvNets', values=[images],
-                               reuse=None if not self._var_defined and self.is_chief else True):
-            layers = tf.layers.conv2d(images, 32, 3, strides=(2, 2), activation=tf.nn.relu)
-            outputs = tf.layers.dense(tf.layers.flatten(layers), 10)
-            self._var_defined = True
-            return outputs
-
-    @property
+    @Model.tensor(summary='Logits')
     def logits(self):
-        if self._logits is None:
-            self._logits = self.dcn(self.features['image'])
+        return self.networks.dcn(self.images)
 
-        return self._logits
-
-    @property
-    def loss(self):
-        if self._loss is None:
-            self._loss = tf.losses.softmax_cross_entropy(self.labels, self.logits)
-
-        return self._loss
-
-    @property
-    def scores(self):
-        if self._scores is None:
-            self._scores = tf.nn.softmax(self.logits)
-
-        return self._scores
-
-    @property
+    @Model.tensor
     def predictions(self):
-        if self._predictions is None:
-            self._predictions = tf.argmax(self.scores, axis=1)
+        return tf.argmax(self.scores, axis=1)
 
-        return self._predictions
+    @Model.tensor
+    def scores(self):
+        return tf.nn.softmax(self.logits)
 
+    @Model.loss
+    def loss(self):
+        return tf.losses.softmax_cross_entropy(self.labels, self.logits, scope='Loss')
 
-def train(images, labels, beta1, beta2, learning_rate, gpu, **decay_params):
-    with tf.variable_scope('DeepConvNet', values=[images, labels]):
-        global_step = tf.train.get_or_create_global_step()
-        optimizer = Optimizer(learning_rate, '', beta1, beta2, decay_policy='dying', decay_params=decay_params)
+    @classmethod
+    def train(cls, features: dict, labels, learning_rate, **hparams):
 
-        if gpu:
-            gpus = map(int, gpu.split(','))
-            dispatcher = Dispatcher(DCN, {}, gpus, {'image': images}, labels)
+        optimizer_params = param_consumer(['beta1', 'beta2'], hparams)
+        decay_params = param_consumer(['train_iters', 'decay_iters', 'decay_steps'], hparams)
 
-            train_op = dispatcher.minimize(optimizer, lambda dcn: dcn.loss, global_step=global_step)
-            loss = dispatcher.chief.loss
-        else:
-            dcn = DCN(True, {'image': images}, labels)
-            loss = dcn.loss
-            train_op = optimizer.train_op(dcn.loss, global_step=global_step)
+        optimizer = Optimizer(learning_rate, '', optimizer_params=optimizer_params, decay_params=decay_params)
+
+        dispatcher = Dispatcher(cls, hparams, features, labels=labels, num_towers=1)
+
+        train_op = dispatcher.minimize(optimizer, lambda m: m.loss, global_step=tf.train.get_or_create_global_step())
+
+        chief = dispatcher.chief  # type: DeepConvNet
+        tf.logging.info('Explicitly declared summaries')
+        loss = chief.loss
+        chief.summary_loss()
 
         return tf.estimator.EstimatorSpec(tf.estimator.ModeKeys.TRAIN, loss=loss, train_op=train_op)
 
+    @classmethod
+    def evaluate(cls, features: dict, labels, gpu_eval, **hparams):
+        chief = cls(features, labels=labels, device=gpu_eval if gpu_eval else 0, **hparams)
 
-def evaluate(images, labels, gpu_eval):
-    with tf.variable_scope('DeepConvNet', values=[images, labels]):
-        with tf.device(device_setter('/gpu:{}'.format(gpu_eval if gpu_eval else 0))):
-            dcn = DCN(True, {'image': images}, labels)
-
-            metrics = {
-                'accuracy': tf.metrics.accuracy(tf.argmax(labels, axis=1), dcn.predictions)
-            }
-
-            return tf.estimator.EstimatorSpec(tf.estimator.ModeKeys.EVAL,
-                                              loss=dcn.loss,
-                                              eval_metric_ops=metrics)
-
-
-def predict(images):
-    with tf.variable_scope('DeepConvNet', values=[images]):
-        dcn = DCN(True, {'image': images}, None)
-
-        predictions = {
-            'predictions': dcn.predictions,
+        metrics = {
+            'accuracy': tf.metrics.accuracy(tf.argmax(labels, axis=1), chief.predictions)
         }
 
-        export_outputs = {
-            tf.saved_model.signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY:
-                tf.estimator.export.PredictOutput(dcn.predictions),
+        return tf.estimator.EstimatorSpec(tf.estimator.ModeKeys.EVAL,
+                                          loss=chief.loss,
+                                          eval_metric_ops=metrics)
+
+    @classmethod
+    def predict(cls, features: dict, gpu_eval, **hparams):
+        chief = cls(features, device=gpu_eval if gpu_eval else 0, **hparams)
+
+        predictions = {
+            'score': chief.scores,
+            'predictions': chief.predictions,
         }
 
         return tf.estimator.EstimatorSpec(tf.estimator.ModeKeys.PREDICT,
                                           predictions=predictions,
-                                          export_outputs=export_outputs)
+                                          export_outputs={
+                                              tf.saved_model.signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY:
+                                                  tf.estimator.export.PredictOutput(predictions),
+                                          })
 
-
-class DeepConvNet(Model):
     @staticmethod
     def model_fn(features, labels, mode, params):
-        images = features['image']
         model_args = params['model_args'] if 'model_args' in params else {}
 
         if mode == tf.estimator.ModeKeys.TRAIN:
             model_args.update(params['train_args'])
-            return train(images, labels, **model_args)
+            return DeepConvNet.train(features, labels, **model_args)
         elif mode == tf.estimator.ModeKeys.EVAL:
             model_args.update(params['eval_args'])
-            return evaluate(images, labels, **model_args)
+            return DeepConvNet.evaluate(features, labels, **model_args)
         elif mode == tf.estimator.ModeKeys.PREDICT:
-            return predict(images)
+            return DeepConvNet.predict(features)
         else:
             raise ValueError
 
@@ -155,14 +128,6 @@ class DeepConvNet(Model):
                                type=float,
                                default=0.0001,
                                help='Learning rate.')
-
-        ##########
-        # Device #
-        ##########
-        argparser.add_argument('--gpu',
-                               type=str,
-                               help='GPU ids for training.',
-                               default=None)
 
     @classmethod
     def add_eval_args(cls, argparser, parse_args):

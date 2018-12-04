@@ -167,3 +167,5 @@ ENV/
 # End of https://www.gitignore.io/api/python,pycharm
 
 src/config.sh
+deployment.xml
+webServers.xml
