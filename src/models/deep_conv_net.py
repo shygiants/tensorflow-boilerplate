@@ -35,6 +35,10 @@ class DeepConvNet(Model):
         return tf.losses.softmax_cross_entropy(self.labels, self.logits, scope='Loss')
 
     @classmethod
+    def num_devices(cls):
+        return 1
+
+    @classmethod
     def train(cls, features: dict, labels, learning_rate, **hparams):
 
         optimizer_params = param_consumer(['beta1', 'beta2'], hparams)
@@ -54,8 +58,8 @@ class DeepConvNet(Model):
         return tf.estimator.EstimatorSpec(tf.estimator.ModeKeys.TRAIN, loss=loss, train_op=train_op)
 
     @classmethod
-    def evaluate(cls, features: dict, labels, gpu_eval, **hparams):
-        chief = cls(features, labels=labels, device=gpu_eval if gpu_eval else 0, **hparams)
+    def evaluate(cls, features: dict, labels, gpu_eval=None, **hparams):
+        chief = cls(features, labels=labels, device=gpu_eval if gpu_eval is not None else 0, **hparams)
 
         metrics = {
             'accuracy': tf.metrics.accuracy(tf.argmax(labels, axis=1), chief.predictions)
@@ -66,8 +70,8 @@ class DeepConvNet(Model):
                                           eval_metric_ops=metrics)
 
     @classmethod
-    def predict(cls, features: dict, gpu_eval, **hparams):
-        chief = cls(features, device=gpu_eval if gpu_eval else 0, **hparams)
+    def predict(cls, features: dict, gpu_eval=None, **hparams):
+        chief = cls(features, device=gpu_eval if gpu_eval is not None else 0, **hparams)
 
         predictions = {
             'score': chief.scores,
