@@ -27,6 +27,9 @@ COPY --from=base /usr/bin /usr/bin
 # Copy pip modules
 COPY --from=pip /usr/local/lib/python3.5/dist-packages /usr/local/lib/python3.5/dist-packages
 
+# Expose debug port
+EXPOSE 6064
+
 # Set working directory
 WORKDIR "/tf"
 

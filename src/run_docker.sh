@@ -28,7 +28,7 @@ if [ ${CMD} = "train" ] || [ ${CMD} = "export" ] || [ ${CMD} = "eval" ] || [ ${C
         PORT="-p 8888:8888"
     fi
 elif [ ${CMD} = "tensorboard" ]; then
-    PORT="-p 6006:6006"
+    PORT="-p 6006:6006 -p 6064:6064"
     CONTAINER_NAME="$CONTAINER_BASENAME-tensorboard"
 elif [ ${CMD} = "encode" ]; then
     CONTAINER_NAME="$CONTAINER_BASENAME-encode-$1"
@@ -49,6 +49,11 @@ do
         --no-build)
         NO_BUILD=YES
         shift # past argument
+        ;;
+        --tensorboard-port)
+        shift
+        PORT="-p $1:6006 -p 6064:6064"
+        shift
         ;;
         *)    # unknown option
         POSITIONAL+=("$1") # save it in an array for later
