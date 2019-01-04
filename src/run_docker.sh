@@ -112,3 +112,5 @@ docker run --runtime=nvidia \
     ${PORT} \
     -v ${JOB_DIR}:/job-dir -v ${DATASET_DIR}:/dataset \
     -d ${REPOSITORY} ${CMD} $@
+
+docker logs -f ${CONTAINER_NAME}
