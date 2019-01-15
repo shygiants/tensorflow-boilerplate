@@ -9,7 +9,6 @@ from tflibs.runner import Runner, DatasetInitializer, TrainInitializer
 from tflibs.training import EvaluationRunHook
 from tflibs.datasets import build_input_fn
 from tflibs.utils import strip_dict_arg
-from tflibs.ops import normalize
 
 
 def run(job_dir,
@@ -27,13 +26,6 @@ def run(job_dir,
     dataset_train = dataset.read(split='train')
     dataset_test = dataset.read(split='test')
 
-    @strip_dict_arg
-    def map_fn(image, label, _id):
-        return {
-                   'image': normalize(image),
-                   '_id': _id,
-               }, tf.to_float(label)
-
     #######
     # Run #
     #######
@@ -47,7 +39,7 @@ def run(job_dir,
     hooks = [EvaluationRunHook(estimator,
                                build_input_fn(dataset_test,
                                               eval_batch_size,
-                                              map_fn=map_fn,
+                                              map_fn=strip_dict_arg(dataset.eval_map_fn),
                                               shuffle_and_repeat=False),
                                eval_steps,
                                summary=False)]
@@ -58,7 +50,7 @@ def run(job_dir,
     # Run training for `train_iters` times
     estimator.train(build_input_fn(dataset_train,
                                    train_batch_size,
-                                   map_fn=map_fn,
+                                   map_fn=strip_dict_arg(dataset.map_fn),
                                    global_step=global_step,
                                    shuffle_and_repeat=True),
                     max_steps=train_iters,

@@ -8,7 +8,6 @@ import os
 import tensorflow as tf
 
 from tflibs.runner import Runner, DatasetInitializer, EvalInitializer
-from tflibs.ops import normalize
 from tflibs.utils import strip_dict_arg
 from tflibs.datasets import build_input_fn
 
@@ -23,13 +22,6 @@ def run(job_dir,
     # Datasets #
     ############
     dataset_test = dataset.read(split='test')
-
-    @strip_dict_arg
-    def map_fn(image, label, _id):
-        return {
-                   'image': normalize(image),
-                   '_id': _id,
-               }, tf.to_float(label)
 
     #######
     # Run #
@@ -49,9 +41,11 @@ def run(job_dir,
 
         # Run evaluation
         tf.logging.info('Start evaluation for {}.'.format(step))
-        estimator.evaluate(build_input_fn(dataset_test, eval_batch_size, shuffle_and_repeat=False),
-                           hooks=[],
-                           checkpoint_path=checkpoint_path)
+        estimator.evaluate(
+            build_input_fn(dataset_test, eval_batch_size, map_fn=strip_dict_arg(dataset.eval_map_fn),
+                           shuffle_and_repeat=False),
+            hooks=[],
+            checkpoint_path=checkpoint_path)
 
 
 if __name__ == '__main__':
