@@ -55,14 +55,6 @@ if __name__ == '__main__':
     ])
     parser = runner.argparser
 
-    ##################
-    # Input Pipeline #
-    ##################
-    parser.add_argument('--eval-batch-size',
-                        type=int,
-                        default=16,
-                        help='Batch size for evaluation')
-
     #########
     # Model #
     #########
