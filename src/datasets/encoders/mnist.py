@@ -96,14 +96,13 @@ def get_img_lbl(image_fname, label_fname, save_dir):
 
 def run(dataset_dir,
         save_dir):
-    train_mnist = MNIST(dataset_dir, split='train')
-    test_mnist = MNIST(dataset_dir, split='test')
+    mnist = MNIST(dataset_dir)
 
     # Prepare MNIST dataset
     train = get_img_lbl('train-images-idx3-ubyte', 'train-labels-idx1-ubyte', save_dir)
     test = get_img_lbl('t10k-images-idx3-ubyte', 't10k-labels-idx1-ubyte', save_dir)
 
-    def process_fn(idx_tup_tup, feature_specs, _):
+    def process_fn(idx_tup_tup, feature_specs):
         i, tup = idx_tup_tup
         img, lbl = tup
 
@@ -116,8 +115,8 @@ def run(dataset_dir,
 
         return build_example(**feature_specs)
 
-    train_mnist.write(list(enumerate(train)), process_fn, num_parallel_calls=16)
-    test_mnist.write(list(enumerate(test)), process_fn)
+    mnist.write(list(enumerate(train)), process_fn, split='train', num_parallel_calls=16)
+    mnist.write(list(enumerate(test)), process_fn, split='test')
 
 
 if __name__ == '__main__':
