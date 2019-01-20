@@ -18,6 +18,10 @@ def run(job_dir,
         train_batch_size,
         eval_batch_size,
         eval_steps,
+        num_parallel_batches,
+        shuffle_buffer_size,
+        prefetch_buffer_size,
+        no_eval,
         debug,
         debug_address):
     ############
@@ -36,14 +40,16 @@ def run(job_dir,
 
     tf.logging.info('Start training for %d.', global_step)
 
-    hooks = [EvaluationRunHook(estimator,
-                               build_input_fn(dataset_test,
-                                              eval_batch_size,
-                                              map_fn=strip_dict_arg(dataset.eval_map_fn),
-                                              shuffle_and_repeat=False),
-                               eval_steps,
-                               summary=False)]
+    hooks = []
 
+    if not no_eval:
+        hooks.append(EvaluationRunHook(estimator,
+                                       build_input_fn(dataset_test,
+                                                      eval_batch_size,
+                                                      map_fn=strip_dict_arg(dataset.eval_map_fn),
+                                                      shuffle_and_repeat=False),
+                                       eval_steps,
+                                       summary=False))
     if debug:
         hooks.append(tfdbg.TensorBoardDebugHook(debug_address))
 
@@ -51,6 +57,9 @@ def run(job_dir,
     estimator.train(build_input_fn(dataset_train,
                                    train_batch_size,
                                    map_fn=strip_dict_arg(dataset.map_fn),
+                                   num_parallel_batches=num_parallel_batches,
+                                   shuffle_buffer_size=shuffle_buffer_size,
+                                   prefetch_buffer_size=prefetch_buffer_size,
                                    global_step=global_step,
                                    shuffle_and_repeat=True),
                     max_steps=train_iters,
@@ -72,11 +81,26 @@ if __name__ == '__main__':
                         type=int,
                         default=5000,
                         help='The number of steps to evaluate the model.')
+    parser.add_argument('--num-parallel-batches',
+                        type=int,
+                        default=2,
+                        help='The number of batches to process parallel.')
+    parser.add_argument('--shuffle-buffer-size',
+                        type=int,
+                        default=10,
+                        help='The size of buffer for shuffling.')
+    parser.add_argument('--prefetch-buffer-size',
+                        type=int,
+                        default=10,
+                        help='The size of buffer to prefetch.')
     parser.add_argument('--debug',
                         action='store_true',
                         help='Whether to debug.')
     parser.add_argument('--debug-address',
                         default='grpc://localhost:6064',
                         help='The address of debugger server.')
+    parser.add_argument('--no-eval',
+                        action='store_true',
+                        help='Whether to eval.')
 
     runner.run(run)

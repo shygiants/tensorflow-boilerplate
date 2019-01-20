@@ -100,7 +100,6 @@ class DeepConvNet(Model):
             model_args.update(params['eval_args'])
             return DeepConvNet.evaluate(features, labels, **model_args)
         elif mode == tf.estimator.ModeKeys.PREDICT:
-            model_args.update(params['eval_args'])
             return DeepConvNet.predict(features, **model_args)
         else:
             raise ValueError
