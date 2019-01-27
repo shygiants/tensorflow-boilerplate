@@ -25,6 +25,10 @@ do
         CPU=YES
         shift
         ;;
+        --no-build-args)
+        NO_BUILD_ARGS=YES
+        shift
+        ;;
         --tensorboard-port)
         shift
         PORT="-p $1:6006 -p 6064:6064"
@@ -96,7 +100,7 @@ fi
 
 if [ -z "$NO_BUILD" ]; then
     echo "Building Docker image..."
-    if [ -f ${DOCKERFILE_DIR}/build-args.env ]; then
+    if [ -z "$NO_BUILD_ARGS" ] && [ -f ${DOCKERFILE_DIR}/build-args.env ]; then
         # build-args.env exists
         ENVS=""
         while read LINE; do
