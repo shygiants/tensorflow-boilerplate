@@ -91,7 +91,7 @@ fi
 # Build image #
 ###############
 if [ -z "$CPU" ]; then
-    GPU_PARAM="--runtime=nvidia -e \"CUDA_VISIBLE_DEVICES=${DEVICE_ID}\""
+    GPU_PARAM="--runtime=nvidia -e CUDA_VISIBLE_DEVICES=${DEVICE_ID}"
     DOCKERFILE="Dockerfile.gpu"
 else
     GPU_PARAM=""
