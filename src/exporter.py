@@ -16,18 +16,6 @@ def run(job_dir,
         model_args,
         step,
         **kwargs):
-    def serving_input_receiver_fn():
-        decoded_image = tf.placeholder(dtype=tf.uint8,
-                                       shape=[28, 28, 1],
-                                       name='input_image')
-        image = normalize(decoded_image)
-        image = tf.expand_dims(image, axis=0)
-
-        receiver_tensors = {'image': decoded_image}
-
-        return tf.estimator.export.ServingInputReceiver({'image': image},
-                                                        receiver_tensors)
-
     ##########
     # Models #
     ##########
@@ -46,7 +34,7 @@ def run(job_dir,
         global_step = 1
 
     tf.logging.info('Export a model for %d.', step or global_step)
-    estimator.export_savedmodel(job_dir, serving_input_receiver_fn,
+    estimator.export_savedmodel(job_dir, model_cls.make_map_fn('predict', **model_args),
                                 checkpoint_path=os.path.join(job_dir, 'model.ckpt-{}'.format(step)) if step else None)
 
 

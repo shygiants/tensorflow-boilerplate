@@ -104,6 +104,17 @@ class DeepConvNet(Model):
         else:
             raise ValueError
 
+    @classmethod
+    def make_map_fn(cls, mode, **hparams):
+        if mode == 'train':
+            return cls.map_fn
+        elif mode == 'eval':
+            return cls.eval_map_fn
+        elif mode == 'predict':
+            return cls.serving_input_receiver_fn
+        else:
+            raise ValueError('`mode` should be in [train, eval, predict]')
+
     @staticmethod
     def map_fn(image, label, _id):
         return {
@@ -114,6 +125,19 @@ class DeepConvNet(Model):
     @staticmethod
     def eval_map_fn(*args, **kwargs):
         return DeepConvNet.map_fn(*args, **kwargs)
+
+    @staticmethod
+    def serving_input_receiver_fn():
+        decoded_image = tf.placeholder(dtype=tf.uint8,
+                                       shape=[28, 28, 1],
+                                       name='input_image')
+        image = normalize(decoded_image)
+        image = tf.expand_dims(image, axis=0)
+
+        receiver_tensors = {'image': decoded_image}
+
+        return tf.estimator.export.ServingInputReceiver({'image': image},
+                                                        receiver_tensors)
 
     @classmethod
     def add_train_args(cls, argparser, parse_args):
