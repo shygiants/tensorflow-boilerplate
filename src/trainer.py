@@ -6,8 +6,8 @@ from __future__ import print_function
 import tensorflow as tf
 from tensorflow.python import debug as tfdbg
 from tflibs.runner import Runner, DatasetInitializer, TrainInitializer
-from tflibs.training import EvaluationRunHook
-from tflibs.datasets import build_input_fn
+from tflibs.training import EvaluationRunHook, BestModelExporterArgs
+from tflibs.datasets import build_input_fn, BaseDataset
 from tflibs.utils import strip_dict_arg
 
 
@@ -15,7 +15,10 @@ def run(job_dir,
         train_iters,
         estimator,
         model_cls,
-        dataset,
+        train_map_fn,
+        eval_map_fn,
+        serving_input_receiver_fn,
+        dataset,  # type: BaseDataset
         train_batch_size,
         eval_batch_size,
         eval_steps,
@@ -28,7 +31,7 @@ def run(job_dir,
     ############
     # Datasets #
     ############
-    dataset_train = dataset.read(split='train')
+    dataset_fn_train = dataset.read(split='train')
 
     #######
     # Run #
@@ -43,21 +46,23 @@ def run(job_dir,
     hooks = []
 
     if not no_eval:
-        dataset_test = dataset.read(split='test')
+        dataset_fn_test = dataset.read(split='test')
         hooks.append(EvaluationRunHook(estimator,
-                                       build_input_fn(dataset_test,
+                                       build_input_fn(dataset_fn_test,
                                                       eval_batch_size,
-                                                      map_fn=strip_dict_arg(model_cls.eval_map_fn),
+                                                      map_fn=strip_dict_arg(eval_map_fn),
                                                       shuffle_and_repeat=False),
                                        eval_steps,
-                                       summary=False))
+                                       summary=False,
+                                       best_model_exporter_args=BestModelExporterArgs(serving_input_receiver_fn,
+                                                                                      'accuracy')))
     if debug:
         hooks.append(tfdbg.TensorBoardDebugHook(debug_address))
 
     # Run training for `train_iters` times
-    estimator.train(build_input_fn(dataset_train,
+    estimator.train(build_input_fn(dataset_fn_train,
                                    train_batch_size,
-                                   map_fn=strip_dict_arg(model_cls.map_fn),
+                                   map_fn=strip_dict_arg(train_map_fn),
                                    num_parallel_batches=num_parallel_batches,
                                    shuffle_buffer_size=shuffle_buffer_size,
                                    prefetch_buffer_size=prefetch_buffer_size,

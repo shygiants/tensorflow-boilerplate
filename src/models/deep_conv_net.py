@@ -4,7 +4,7 @@ from __future__ import print_function
 
 import tensorflow as tf
 from tflibs.model import Model
-from tflibs.training import Optimizer, Dispatcher
+from tflibs.training import Optimizer
 from tflibs.utils import param_consumer
 from tflibs.ops import normalize
 
@@ -12,8 +12,8 @@ from networks.deep_conv_net import DeepConvNet as DCN
 
 
 class DeepConvNet(Model):
-    def __init__(self, features, labels=None, model_idx=0, device=None, **hparams):
-        Model.__init__(self, features, labels=labels, model_idx=model_idx, device=device, **hparams)
+    def __init__(self, features, labels=None, **hparams):
+        Model.__init__(self, features, labels=labels, **hparams)
 
         # Define networks
         self.networks.update(dcn=DCN(scope='DeepConvNet', **hparams))
@@ -39,22 +39,17 @@ class DeepConvNet(Model):
         return tf.losses.softmax_cross_entropy(self.labels, self.logits, scope='Loss')
 
     @classmethod
-    def num_devices(cls):
-        return 1
-
-    @classmethod
     def train(cls, features: dict, labels, learning_rate, **hparams):
-
         optimizer_params = param_consumer(['beta1', 'beta2'], hparams)
         decay_params = param_consumer(['train_iters', 'decay_iters', 'decay_steps'], hparams)
 
         optimizer = Optimizer(learning_rate, '', optimizer_params=optimizer_params, decay_params=decay_params)
 
-        dispatcher = Dispatcher(cls, hparams, features, labels=labels, num_towers=1, model_parallelism=False)
+        chief = cls(features, labels=labels, **hparams)  # type: DeepConvNet
 
-        train_op = dispatcher.minimize(optimizer, lambda m: m.loss, global_step=tf.train.get_or_create_global_step())
+        grads = optimizer.compute_grad(chief.loss)
+        train_op = optimizer.apply_gradients(grads, global_step=tf.train.get_or_create_global_step())
 
-        chief = dispatcher.chief  # type: DeepConvNet
         tf.logging.info('Explicitly declared summaries')
         loss = chief.loss
         chief.summary_loss()
@@ -62,8 +57,8 @@ class DeepConvNet(Model):
         return tf.estimator.EstimatorSpec(tf.estimator.ModeKeys.TRAIN, loss=loss, train_op=train_op)
 
     @classmethod
-    def evaluate(cls, features: dict, labels, gpu_eval=None, **hparams):
-        chief = cls(features, labels=labels, device=gpu_eval if gpu_eval is not None else 0, **hparams)
+    def evaluate(cls, features: dict, labels, **hparams):
+        chief = cls(features, labels=labels, **hparams)
 
         metrics = {
             'accuracy': tf.metrics.accuracy(tf.argmax(labels, axis=1), chief.predictions)
@@ -74,8 +69,8 @@ class DeepConvNet(Model):
                                           eval_metric_ops=metrics)
 
     @classmethod
-    def predict(cls, features: dict, gpu_eval=None, **hparams):
-        chief = cls(features, device=gpu_eval if gpu_eval is not None else 0, **hparams)
+    def predict(cls, features: dict, **hparams):
+        chief = cls(features, **hparams)
 
         predictions = {
             'score': chief.scores,
@@ -171,13 +166,6 @@ class DeepConvNet(Model):
                                type=float,
                                default=0.0001,
                                help='Learning rate.')
-
-    @classmethod
-    def add_eval_args(cls, argparser, parse_args):
-        argparser.add_argument('--gpu-eval',
-                               type=str,
-                               help='GPU ids for evaluation.',
-                               default=None)
 
 
 export = DeepConvNet
