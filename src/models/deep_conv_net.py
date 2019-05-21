@@ -47,8 +47,7 @@ class DeepConvNet(Model):
 
         chief = cls(features, labels=labels, **hparams)  # type: DeepConvNet
 
-        grads = optimizer.compute_grad(chief.loss)
-        train_op = optimizer.apply_gradients(grads, global_step=tf.train.get_or_create_global_step())
+        train_op = optimizer.minimize(chief.loss, global_step=tf.train.get_or_create_global_step())
 
         tf.logging.info('Explicitly declared summaries')
         loss = chief.loss

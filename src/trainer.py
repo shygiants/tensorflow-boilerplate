@@ -31,7 +31,7 @@ def run(job_dir,
     ############
     # Datasets #
     ############
-    dataset_fn_train = dataset.read(split='train')
+    dataset_fn_train = dataset.read(split='train', cache=True)
 
     #######
     # Run #
@@ -46,7 +46,7 @@ def run(job_dir,
     hooks = []
 
     if not no_eval:
-        dataset_fn_test = dataset.read(split='test')
+        dataset_fn_test = dataset.read(split='test', cache=True)
         hooks.append(EvaluationRunHook(estimator,
                                        build_input_fn(dataset_fn_test,
                                                       eval_batch_size,
