@@ -18,13 +18,11 @@ class MNIST(BaseDataset):
     def tfrecord_filename(self):
         return 'mnist.tfrecord'
 
-    def _init_feature_specs(self):
+    def _init_feature_specs(self, split=None):
         return {
             'image': ImageSpec([28, 28, 1]),
             'label': LabelSpec(10),
         }
-
-
 
 
 export = MNIST
