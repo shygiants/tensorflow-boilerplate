@@ -1,1 +1,2 @@
-tflibs==0.11.0
+tflibs==1.0.0.dev1
+tqdm

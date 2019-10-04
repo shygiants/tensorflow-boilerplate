@@ -2,8 +2,12 @@
 
 PROJECT_NAME=TFBootstrap
 CONTAINER_BASENAME=tf-bootstrap
-DOCKERFILE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 REPOSITORY="$USER/$CONTAINER_BASENAME"
+
+WORK_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+DOCKERFILE_DIR="${WORK_DIR}/docker"
+
+
 PORT=""
 DEVICE_ID="7"
 ARGS=""
@@ -48,7 +52,7 @@ set -- "${POSITIONAL[@]}" # restore positional parameters
 CMD=$1
 shift
 
-if [ ${CMD} = "train" ] || [ ${CMD} = "export" ] || [ ${CMD} = "eval" ] || [ ${CMD} = "serve" ] || [ ${CMD} = "notebook" ]; then
+if [ ${CMD} = "train" ] || [ ${CMD} = "notebook" ]; then
     CONTAINER_NAME="$CONTAINER_BASENAME-${CMD}"
 
     if [ ${CMD} = "serve" ]; then
@@ -83,7 +87,7 @@ elif [ ${CMD} = "build" ]; then
     echo "Only build Docker image."
     JUST_BUILD=YES
 else
-    echo "Usage: run_docker.sh [train|export|eval|serve|notebook|tensorboard|encode|build] [DEVICE_ID]"
+    echo "Usage: run_docker.sh [train|notebook|tensorboard|encode|build] [DEVICE_ID]"
     exit 1
 fi
 
@@ -100,15 +104,15 @@ fi
 
 if [ -z "$NO_BUILD" ]; then
     echo "Building Docker image..."
-    if [ -z "$NO_BUILD_ARGS" ] && [ -f ${DOCKERFILE_DIR}/build-args.env ]; then
+    if [ -z "$NO_BUILD_ARGS" ] && [ -f ${WORK_DIR}/build-args.env ]; then
         # build-args.env exists
         ENVS=""
         while read LINE; do
             ENVS="${ENVS} --build-arg ${LINE}"
-        done < ${DOCKERFILE_DIR}/build-args.env
+        done < ${WORK_DIR}/build-args.env
     fi
 
-    docker build ${ENVS} -t ${REPOSITORY} -f ${DOCKERFILE_DIR}/${DOCKERFILE} ${DOCKERFILE_DIR}
+    docker build ${ENVS} -t ${REPOSITORY} -f ${DOCKERFILE_DIR}/${DOCKERFILE} ${WORK_DIR}
 else
     echo "Skip building Docker image."
 fi
@@ -123,7 +127,7 @@ fi
 echo "Running \"${CMD}\"..."
 
 # Check environment variables
-if [ ! -f ${DOCKERFILE_DIR}/config.sh ]; then
+if [ ! -f ${WORK_DIR}/config.sh ]; then
     echo "config.sh not found! Make use of environment variables!"
     if [ -z "$JOB_DIR" ]; then
         UNSET_VARS=" JOB_DIR"
@@ -139,7 +143,7 @@ if [ ! -f ${DOCKERFILE_DIR}/config.sh ]; then
         exit 1
     fi
 else
-    . ${DOCKERFILE_DIR}/config.sh
+    . ${WORK_DIR}/config.sh
 fi
 
 
@@ -155,6 +159,7 @@ docker run \
     -e "PASSWORD=${NOTEBOOK_PASSWD}" \
     --name ${CONTAINER_NAME} \
     ${PORT} \
+    -v /Users/kakao/workspace/tflibs:/tflibs \
     -v ${JOB_DIR}:/job-dir -v ${DATASET_DIR}:/dataset \
     -d ${REPOSITORY} ${CMD} $@
 

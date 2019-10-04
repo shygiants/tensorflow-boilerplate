@@ -1,10 +1,6 @@
 """
     Dataset encoder for MNIST
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import os
 from six.moves import urllib
 import tempfile
@@ -14,9 +10,10 @@ import shutil
 import tensorflow as tf
 import numpy as np
 from tflibs.runner import Runner
-from tflibs.datasets import IDSpec, ImageSpec, LabelSpec
+from tflibs.dataset import Split, IDSpec, ImageSpec, LabelSpec
+from tflibs.io import Writer
 
-from datasets.dataset.mnist import MNIST
+from datasets.specs.mnist import MNIST
 
 
 def download(save_dir, filename):
@@ -96,40 +93,33 @@ def get_img_lbl(image_fname, label_fname, save_dir):
 
 def run(dataset_dir,
         save_dir):
-    mnist = MNIST(dataset_dir)
+    mnist_spec = MNIST()
+    feature_specs = mnist_spec.feature_specs
+    id_spec = feature_specs['_id']  # type: IDSpec
+    image_spec = feature_specs['image']  # type: ImageSpec
+    label_spec = feature_specs['label']  # type: LabelSpec
 
     # Prepare MNIST dataset
     train = get_img_lbl('train-images-idx3-ubyte', 'train-labels-idx1-ubyte', save_dir)
     test = get_img_lbl('t10k-images-idx3-ubyte', 't10k-labels-idx1-ubyte', save_dir)
 
-    def process_fn(idx_tup_tup, feature_specs):
+    def map_fn(idx_tup_tup):
         i, tup = idx_tup_tup
         img, lbl = tup
 
-        def build_example(_id: IDSpec, image: ImageSpec, label: LabelSpec):
-            return {
-                '_id': _id.create_with_string('{:05d}.jpg'.format(i)),
-                'image': image.create_with_tensor(img),
-                'label': label.create_with_index(lbl),
-            }
+        return mnist_spec.build_example_proto(_id=id_spec.create_with_string('{:05d}.jpg'.format(i)),
+                                              image=image_spec.create_with_tensor(img),
+                                              label=label_spec.create_with_index(lbl))
 
-        return build_example(**feature_specs)
+    filename = 'mnist.tfrecord'
+    train_writer = Writer(dataset_dir, filename, split=Split.Train)
+    test_writer = Writer(dataset_dir, filename, split=Split.Test)
 
-    mnist.write(list(enumerate(train)), process_fn, split='train', num_parallel_calls=16)
-    mnist.write(list(enumerate(test)), process_fn, split='test')
+    train_writer.write(enumerate(train), map_fn=map_fn)
+    test_writer.write(enumerate(test), map_fn=map_fn)
 
 
 if __name__ == '__main__':
-    runner = Runner(no_job_dir=True)
-    parser = runner.argparser
-
-    parser.add_argument('--dataset-dir',
-                        required=True,
-                        type=str,
-                        help='The directory where datasets are stored.')
-    parser.add_argument('--save-dir',
-                        default='/tmp',
-                        type=str,
-                        help='The directory where MNIST files are stored.')
+    runner = Runner(use_strategy=False, use_global_step=False, use_summary=False)
 
     runner.run(run)

@@ -1,0 +1,22 @@
+train_batch_size: 256
+eval_batch_size: 256
+job_dir: /job-dir/mnist
+dataset_dir: /dataset/mnist
+dataset_filename: mnist.tfrecord
+num_epochs: 10
+summary_steps: 50
+log_steps: 10
+model: !!python/object/apply:initializers.select_model
+  kwds:
+    name: deep_conv_net
+    num_classes: 10
+optimizer: !!python/object/apply:initializers.select_optimizer
+  kwds:
+    name: adam
+    learning_rate: 0.001
+dataset_spec: !!python/object/apply:initializers.select_dataset_spec
+  kwds:
+    name: mnist
+loss_fn: !!python/object/apply:initializers.select_loss
+  kwds:
+    name: categorical_cross_entropy
