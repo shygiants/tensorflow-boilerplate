@@ -8,17 +8,25 @@ from tflibs.io import Reader
 from tflibs.dataset import Split, DatasetSpec
 
 
-class ExceptionHandler:
+class CheckpointHandler:
     def __init__(self, checkpoint: tf.train.Checkpoint, checkpoint_prefix: str):
-        self.checkpoint = checkpoint
-        self.checkpoint_prefix = checkpoint_prefix
+        self._checkpoint = checkpoint
+        self._checkpoint_prefix = checkpoint_prefix
+
+    @property
+    def checkpoint(self):
+        return self._checkpoint
+
+    @property
+    def checkpoint_prefix(self):
+        return self._checkpoint_prefix
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.checkpoint.save(file_prefix=self.checkpoint_prefix)
-        print('MODEL SAVED')
+        print('Model saved when exiting')
 
         return False
 
@@ -101,7 +109,7 @@ def main(strategy: tf.distribute.MirroredStrategy,
     train_dataset = strategy.experimental_distribute_dataset(train_dataset)
     test_dataset = strategy.experimental_distribute_dataset(test_dataset)
 
-    with ExceptionHandler(checkpoint, checkpoint_prefix):
+    with CheckpointHandler(checkpoint, checkpoint_prefix):
         for epoch in range(num_epochs):
             print('---------- Epoch: {} ----------'.format(epoch + 1))
 
@@ -128,8 +136,8 @@ def main(strategy: tf.distribute.MirroredStrategy,
                 tf.summary.scalar('accuracy', accuracy, step=global_step)
 
                 if accuracy >= best_metric:
-                    checkpoint.save(file_prefix=checkpoint_prefix + 'best')
-                    print('Model saved')
+                    checkpoint.save(file_prefix=checkpoint_prefix + '-best')
+                    print('The best model saved: {} is higher than {}'.format(accuracy.numpy(), best_metric.numpy()))
                     best_metric.assign(accuracy)
 
             eval_metric.reset_states()
