@@ -1,2 +1,3 @@
+tensorflow-datasets
 tflibs==1.0.0.dev1
 tqdm

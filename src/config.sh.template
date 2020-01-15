@@ -2,4 +2,6 @@
 
 JOB_DIR=/your/job/dir
 DATASET_DIR=/your/dataset/dir
+TF_DATASET_DIR=/your/tf-dataset/dir
+MODEL_DIR=/your/model/dir
 NOTEBOOK_PASSWD="your password"

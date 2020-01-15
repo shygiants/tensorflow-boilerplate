@@ -1,4 +1,4 @@
-FROM tensorflow/tensorflow:2.0.0-py3-jupyter as base
+FROM tensorflow/tensorflow:2.1.0-py3-jupyter as base
 
 MAINTAINER Sanghoon Yoon <shygiants@gmail.com>
 
@@ -11,7 +11,7 @@ RUN apt-get update && apt-get -y install python-opencv
 #######################
 # Install pip modules #
 #######################
-FROM tensorflow/tensorflow:2.0.0-py3-jupyter as pip
+FROM tensorflow/tensorflow:2.1.0-py3-jupyter as pip
 
 COPY ./requirements.txt .
 RUN pip install -r ./requirements.txt
@@ -19,7 +19,7 @@ RUN pip install -r ./requirements.txt
 ########
 # MAIN #
 ########
-FROM tensorflow/tensorflow:2.0.0-py3-jupyter
+FROM tensorflow/tensorflow:2.1.0-py3-jupyter
 
 # Copy libraries
 COPY --from=base /usr/lib/x86_64-linux-gnu /usr/lib/x86_64-linux-gnu

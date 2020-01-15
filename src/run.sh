@@ -18,6 +18,8 @@ elif [ $1 = "encode" ]; then
 elif [ $1 = "tensorboard" ]; then
     tensorboard --logdir=${LOG_DIR} --host=0.0.0.0 "${@:2}"
 elif [ $1 = "notebook" ]; then
+    jupyter notebook --generate-config
+    echo "from notebook.auth import passwd; c.NotebookApp.password = passwd('${PASSWORD}')" >> ~/.jupyter/jupyter_notebook_config.py
     bash -c "source /etc/bash.bashrc && jupyter notebook --notebook-dir=/tf --ip 0.0.0.0 --no-browser --allow-root" "${@:2}"
 
 elif [ $1 = "run" ]; then

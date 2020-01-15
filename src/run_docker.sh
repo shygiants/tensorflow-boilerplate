@@ -7,7 +7,6 @@ REPOSITORY="$USER/$CONTAINER_BASENAME"
 WORK_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 DOCKERFILE_DIR="${WORK_DIR}/docker"
 
-
 PORT=""
 DEVICE_ID="7"
 ARGS=""
@@ -135,6 +134,13 @@ if [ ! -f ${WORK_DIR}/config.sh ]; then
     if [ -z "$DATASET_DIR" ]; then
         UNSET_VARS="${UNSET_VARS} DATASET_DIR"
     fi
+    if [ -z "$TF_DATASET_DIR" ]; then
+        UNSET_VARS="${UNSET_VARS} TF_DATASET_DIR"
+    fi
+    if [ -z "$MODEL_DIR" ]; then
+        UNSET_VARS="${UNSET_VARS} MODEL_DIR"
+    fi
+
     if [ -z "$NOTEBOOK_PASSWD" ] && [ ${CMD} = "notebook" ]; then
         UNSET_VARS="${UNSET_VARS} NOTEBOOK_PASSWD"
     fi
@@ -153,14 +159,23 @@ docker stop ${CONTAINER_NAME}
 echo "Removing the existing container..."
 docker rm ${CONTAINER_NAME}
 
+if [ -z "$NO_BUILD_ARGS" ] && [ -f ${WORK_DIR}/build-args.env ]; then
+    # build-args.env exists
+    ENVS=""
+    while read LINE; do
+        ENVS="${ENVS} -e ${LINE}"
+    done < ${WORK_DIR}/build-args.env
+fi
+
 # Run docker container
 docker run \
     ${GPU_PARAM} \
+    ${ENVS} \
     -e "PASSWORD=${NOTEBOOK_PASSWD}" \
     --name ${CONTAINER_NAME} \
     ${PORT} \
-    -v /Users/kakao/workspace/tflibs:/tflibs \
-    -v ${JOB_DIR}:/job-dir -v ${DATASET_DIR}:/dataset \
+    -v ${TF_DATASET_DIR}:/tf/tensorflow_datasets \
+    -v ${JOB_DIR}:/job-dir -v ${DATASET_DIR}:/dataset -v ${MODEL_DIR}:/root/.keras/models \
     -d ${REPOSITORY} ${CMD} $@
 
 docker logs -f ${CONTAINER_NAME}
